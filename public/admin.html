@@ -68,10 +68,16 @@
         <div id="result">Scan a QR code to begin...</div>
     </div>
 
-    <script src="https://unpkg.com/html5-qrcode/minified/html5-qrcode.min.js"></script>
-
+   
+</head>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
     <script>
         const resultEl = document.getElementById('result');
+        var html5QrcodeScanner = new Html5QrcodeScanner(
+            "qr-reader", 
+            { fps: 10, qrbox: 250 }
+        );
+        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
 
         // This function runs when a QR code is successfully scanned
         async function onScanSuccess(decodedText, decodedResult) {
@@ -139,15 +145,7 @@
             // console.warn(`QR error = ${error}`);
         }
 
-        var html5QrcodeScanner = new Html5QrcodeScanner(
-            "qr-reader", // ID of the div to use
-            { 
-                fps: 10, // Frames per second
-                qrbox: 250 // Size of the scanning box
-            },
-            false // verbose = false
-        );
-        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+       
     </script>
 </body>
 </html>
