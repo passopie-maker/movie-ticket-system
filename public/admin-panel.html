@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Panel</title>
+    <style>
+        body { font-family: sans-serif; background: #222; color: #fff; padding: 20px; }
+        .container { max-width: 500px; margin: auto; background: #333; padding: 20px; border-radius: 8px; }
+        input, select { width: 100%; padding: 10px; margin-bottom: 10px; box-sizing: border-box; }
+        button { background: #00aaff; color: white; padding: 12px; border: none; cursor: pointer; width: 100%; }
+        #admin-message { margin-top: 15px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Add New Show</h1>
+        <form id="add-show-form">
+            <label for="show-name">Show Name (e.g., "Movie Title - 7 PM")</label>
+            <input type="text" id="show-name" required>
+
+            <label for="show-date">Date & Time</label>
+            <input type="datetime-local" id="show-date" required>
+
+            <label for="show-screen">Select Screen</label>
+            <select id="show-screen" required>
+                <option value="Screen 1 - Blue">Screen 1 - Blue</option>
+                <option value="Screen 2 - Red">Screen 2 - Red</option>
+            </select>
+            <label for="admin-pass">Admin Password</label>
+            <input type="password" id="admin-pass" required>
+
+            <button type="submit">Create Show</button>
+        </form>
+        <p id="admin-message"></p>
+    </div>
+    <script src="admin-panel.js"></script>
+</body>
+</html>

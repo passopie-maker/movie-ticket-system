@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin QR Scanner</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            padding: 20px;
+            background-color: #f0f2f5;
+            display: grid;
+            place-items: center;
+            min-height: 90vh;
+        }
+        .scanner-container {
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+            padding: 25px;
+            width: 100%;
+            max-width: 500px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+        #qr-reader {
+            width: 100%;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        #result {
+            margin-top: 20px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-align: center;
+            padding: 15px;
+            border-radius: 8px;
+            word-wrap: break-word;
+            line-height: 1.6;
+        }
+        /* Result styling */
+        .success {
+            background-color: #e6f7ec;
+            border: 1px solid #b7ebc9;
+            color: #1e8e3e;
+        }
+        .error {
+            background-color: #fce8e6;
+            border: 1px solid #f5c6cb;
+            color: #d93025;
+        }
+        .validating {
+            background-color: #e6f0fa;
+            border: 1px solid #c2d8f0;
+            color: #1967d2;
+        }
+    </style>
+</head>
+<body>
+    <div class="scanner-container">
+        <h1>Admin Ticket Scanner</h1>
+        
+        <div id="qr-reader"></div>
+        
+        <div id="result">Scan a QR code to begin...</div>
+    </div>
+
+    <script src="https://unpkg.com/html5-qrcode/minified/html5-qrcode.min.js"></script>
+
+    <script>
+        const resultEl = document.getElementById('result');
+
+        // This function runs when a QR code is successfully scanned
+        async function onScanSuccess(decodedText, decodedResult) {
+            console.log(`Scan result: ${decodedText}`);
+            
+            let bookingId, showId;
+            try {
+                // The QR code contains JSON: {"bookingId": "...", "showId": "..."}
+                const data = JSON.parse(decodedText);
+                bookingId = data.bookingId;
+                showId = data.showId;
+            } catch (e) {
+                resultEl.className = 'error';
+                resultEl.textContent = 'Invalid QR Code format.';
+                return;
+            }
+
+            if (!bookingId || !showId) {
+                resultEl.className = 'error';
+                resultEl.textContent = 'QR Code is missing required data (bookingId or showId).';
+                return;
+            }
+
+            // --- Show validating message ---
+            resultEl.className = 'validating';
+            resultEl.textContent = 'Validating...';
+
+            try {
+                // IMPORTANT: Replace 'http://localhost:3000' with your live server URL if you deploy it
+                const res = await fetch(`http://localhost:3000/api/validate-ticket/${bookingId}/${showId}`);
+                const data = await res.json();
+                
+                if (res.ok) {
+                    resultEl.className = 'success';
+                    resultEl.innerHTML = `
+                        <strong>SUCCESS: VALID TICKET</strong><br>
+                        Name: ${data.name}<br>
+                        Email: ${data.email}<br>
+                        Seats: ${data.seats}
+                    `;
+                } else {
+                    resultEl.className = 'error';
+                    if (res.status === 409) { // Already checked in
+                         resultEl.innerHTML = `
+                            <strong>ERROR: ALREADY CHECKED IN</strong><br>
+                            Name: ${data.name}<br>
+                            Seats: ${data.seats}<br>
+                            Checked In: ${new Date(data.checkedInAt).toLocaleTimeString()}
+                        `;
+                    } else {
+                        // Other errors like 404 (Not Found) or 400 (Not Paid)
+                        resultEl.textContent = `ERROR: ${data.message}`;
+                    }
+                }
+            } catch (err) {
+                resultEl.className = 'error';
+                resultEl.textContent = 'Error connecting to server. Check console.';
+                console.error(err);
+            }
+        }
+
+        // --- Initialize the QR Scanner ---
+        function onScanFailure(error) {
+            // This will log errors but won't show them to the user
+            // console.warn(`QR error = ${error}`);
+        }
+
+        var html5QrcodeScanner = new Html5QrcodeScanner(
+            "qr-reader", // ID of the div to use
+            { 
+                fps: 10, // Frames per second
+                qrbox: 250 // Size of the scanning box
+            },
+            false // verbose = false
+        );
+        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+    </script>
+</body>
+</html>

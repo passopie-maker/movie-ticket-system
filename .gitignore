@@ -1,0 +1,6 @@
+# Ignore local dependencies
+node_modules
+
+# Ignore all secret files
+.env
+serviceAccountKey.json

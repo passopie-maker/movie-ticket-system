@@ -1,0 +1,273 @@
+/* --- Add these styles for the seat map --- */
+
+.seat-selection-container {
+    background: #f7f7f7;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.screen {
+    background-color: #333;
+    height: 40px;
+    width: 80%;
+    margin: 15px 0;
+    border-radius: 5px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
+}
+
+.seat-info {
+    font-size: 0.8rem;
+    color: #555;
+    margin-bottom: 15px;
+}
+
+.seat-map {
+    display: grid;
+    /* We will use 10 seats per row */
+    grid-template-columns: repeat(10, 1fr);
+    gap: 5px;
+}
+
+.seat {
+    background-color: #a0a0a0;
+    height: 25px;
+    width: 25px;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    font-size: 0.7rem;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    color: #fff;
+    font-weight: bold;
+}
+
+.seat.selected {
+    background-color: #6feaf6;
+    color: #000;
+}
+
+.seat.sold {
+    background-color: #ff5252;
+    cursor: not-allowed;
+}
+
+.seat:not(.sold):hover {
+    transform: scale(1.1);
+}
+
+.summary-text {
+    font-size: 1.1rem;
+    font-weight: bold;
+    text-align: center;
+    margin-top: -10px;
+    margin-bottom: 20px;
+}
+
+/* --- Google Font Import --- */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+
+/* --- Reset & Basic Setup --- */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: #121212; /* Dark background */
+    color: #e0e0e0;
+    display: grid;
+    place-items: center;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+/* --- Main Container Card --- */
+.container {
+    background: #1e1e1e; /* Slightly lighter card */
+    padding: 2.5rem;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    width: 100%;
+    max-width: 600px;
+}
+
+h1 {
+    color: #ffffff;
+    text-align: center;
+    margin-bottom: 0.5rem;
+    font-weight: 700;
+}
+
+.container > p {
+    text-align: center;
+    font-size: 1rem;
+    color: #a0a0a0;
+    margin-bottom: 2rem;
+}
+
+/* --- Seat Map & Screen --- */
+.seat-selection-container {
+    background: #121212; /* Match body bg */
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border: 1px solid #333;
+}
+
+.screen {
+    background-color: #fff;
+    height: 30px; /* Thinner screen */
+    width: 70%;
+    margin-bottom: 20px;
+    border-radius: 3px;
+    box-shadow: 0 0 20px 5px rgba(255, 255, 255, 0.3); /* Glow effect */
+}
+
+.seat-info {
+    font-size: 0.8rem;
+    color: #888;
+    margin-bottom: 15px;
+}
+
+.seat-map {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 8px; /* Slightly more spacing */
+}
+
+.seat {
+    background-color: #444; /* Available seat */
+    height: 30px;
+    width: 30px;
+    border-radius: 5px;
+    font-size: 0.75rem;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    color: #ccc;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.seat.selected {
+    background-color: #00aaff; /* Bright blue accent */
+    color: #121212;
+    box-shadow: 0 0 15px rgba(0, 170, 255, 0.5);
+}
+
+.seat.sold {
+    background-color: #3a3a3a; /* Darker sold seat */
+    color: #666;
+    cursor: not-allowed;
+}
+
+.seat:not(.sold):hover {
+    transform: scale(1.15);
+    background-color: #555;
+}
+
+/* --- Summary Text --- */
+.summary-text {
+    font-size: 1.15rem;
+    font-weight: 600;
+    text-align: center;
+    margin-bottom: 2rem;
+    color: #fff;
+}
+
+.summary-text span {
+    color: #00aaff; /* Accent color */
+}
+
+/* --- Booking Form --- */
+#booking-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem; /* Spacing between form items */
+}
+
+#booking-form label {
+    font-size: 0.9rem;
+    color: #a0a0a0;
+    margin-bottom: -10px;
+}
+
+#booking-form input {
+    padding: 0.9rem;
+    border: 1px solid #444;
+    background-color: #2a2a2a;
+    border-radius: 6px;
+    color: #e0e0e0;
+    font-family: 'Poppins', sans-serif;
+    font-size: 1rem;
+}
+
+#booking-form input:focus {
+    outline: none;
+    border-color: #00aaff;
+    box-shadow: 0 0 10px rgba(0, 170, 255, 0.3);
+}
+
+/* --- Button --- */
+#book-btn {
+    background-color: #00aaff;
+    color: #ffffff;
+    padding: 1rem;
+    border: none;
+    border-radius: 6px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    font-family: 'Poppins', sans-serif;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-top: 1rem;
+}
+
+#book-btn:hover {
+    background-color: #0088cc;
+    box-shadow: 0 0 15px rgba(0, 170, 255, 0.5);
+    transform: translateY(-2px);
+}
+
+#book-btn:active {
+    transform: translateY(0);
+}
+
+/* --- Message Area --- */
+#message {
+    margin-top: 1.5rem;
+    font-weight: 600;
+    text-align: center;
+    min-height: 1.2em;
+}
+
+/* --- New Show Selector Styles --- */
+.show-selector-container {
+    margin-bottom: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.show-selector-container label {
+    font-weight: 600;
+    color: #a0a0a0;
+}
+#show-selector {
+    padding: 0.9rem;
+    border: 1px solid #444;
+    background-color: #2a2a2a;
+    border-radius: 6px;
+    color: #e0e0e0;
+    font-family: 'Poppins', sans-serif;
+    font-size: 1rem;
+}

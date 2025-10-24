@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>College Movie Night</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>College Movie Night</h1>
+        <p>Book your ticket now! Price: ₹30 per seat</p>
+<div class="show-selector-container">
+    <label for="show-selector">Select Your Show:</label>
+    <select id="show-selector">
+        <option value="">Loading shows...</option>
+    </select>
+</div>
+        <div class="seat-selection-container">
+            <div class="screen"></div>
+            <p class="seat-info">N/A: Not Available, S: Selected, A: Available</p>
+            <div id="seat-map" class="seat-map">
+                </div>
+        </div>
+
+        <p class="summary-text">
+            You have selected <span id="count">0</span> seats for a total price of ₹<span id="total">0</span>
+        </p>
+
+        <form id="booking-form">
+            <label for="name">Name:</label>
+            <input type="text" id="name" required>
+
+            <label for="email">Email:</label>
+            <input type="email" id="email" required>
+
+            <label for="phone">Phone:</label>
+            <input type="tel" id="phone" required>
+
+            <button type="submit" id="book-btn">Book Now</button>
+        </form>
+        <p id="message"></p>
+    </div>
+
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
