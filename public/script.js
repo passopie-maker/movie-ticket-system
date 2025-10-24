@@ -6,8 +6,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const messageEl = document.getElementById('message');
     const bookingForm = document.getElementById('booking-form');
     const showSelector = document.getElementById('show-selector');
-    const skipButton = document.getElementById('skip-btn'); // Test button
-    const bookButton = document.getElementById('book-btn'); // Main book button
+    const skipButton = document.getElementById('skip-btn');
+    const bookButton = document.getElementById('book-btn');
+
+    // --- NEW: Timer Elements ---
+    const timerContainer = document.getElementById('timer-container');
+    const timerDisplay = document.getElementById('timer');
+    
+    let bookingTimer = null;        // Stores the interval
+    let currentRzpObject = null;    // Stores the active Razorpay modal
 
     // --- Constants ---
     const TICKET_PRICE = 30;
@@ -17,6 +24,48 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- State variables ---
     let bookedSeats = [];
     let currentShowId = null;
+
+    // --- NEW: Timer Functions ---
+
+    function clearBookingTimer() {
+        if (bookingTimer) {
+            clearInterval(bookingTimer);
+            bookingTimer = null;
+        }
+        timerContainer.classList.add('hidden'); // Hide timer
+        currentRzpObject = null;
+    }
+
+    function startTimer(durationInSeconds) {
+        clearBookingTimer(); // Clear any old timer
+
+        let timer = durationInSeconds;
+        timerContainer.classList.remove('hidden'); // Show timer
+
+        bookingTimer = setInterval(function () {
+            let minutes = parseInt(timer / 60, 10);
+            let seconds = parseInt(timer % 60, 10);
+
+            minutes = minutes < 10 ? "0" + minutes : minutes;
+            seconds = seconds < 10 ? "0" + seconds : seconds;
+
+            timerDisplay.textContent = minutes + ":" + seconds;
+
+            if (--timer < 0) {
+                // --- TIMER EXPIRED ---
+                clearBookingTimer();
+                messageEl.textContent = "Your session expired. Your seats have been released.";
+                
+                if (currentRzpObject) {
+                    currentRzpObject.close(); // Close the Razorpay modal
+                }
+                
+                // Refresh the map. The backend will no longer count this pending booking.
+                fetchBookedSeats(currentShowId); 
+            }
+        }, 1000);
+    }
+
 
     // --- 1. Populate Show Selector ---
     async function populateShowSelector() {
@@ -28,7 +77,6 @@ document.addEventListener('DOMContentLoaded', () => {
             showSelector.innerHTML = ''; // Clear "Loading..."
             if (shows.length === 0) {
                 showSelector.innerHTML = '<option value="">No shows available</option>';
-                // Disable form if no shows
                 bookButton.disabled = true;
                 skipButton.disabled = true;
                 return;
@@ -40,14 +88,10 @@ document.addEventListener('DOMContentLoaded', () => {
             shows.forEach(show => {
                 const option = document.createElement('option');
                 option.value = show.id;
-                // Updated text to include the screen name
                 option.textContent = `${show.name} [${show.screen}] (${new Date(show.date).toLocaleString()})`;
                 showSelector.appendChild(option);
             });
-
-            // Trigger change to load seats for the first show
             showSelector.dispatchEvent(new Event('change'));
-
         } catch (error) {
             messageEl.textContent = 'Error loading shows.';
             console.error(error);
@@ -64,36 +108,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 3. Create the Seat Map ---
     function createSeatMap() {
-        seatMap.innerHTML = ''; // Clear existing map
+        seatMap.innerHTML = '';
         for (let i = 0; i < ROWS; i++) {
-            const rowLetter = String.fromCharCode(65 + i); // A, B, C...
+            const rowLetter = String.fromCharCode(65 + i);
             for (let j = 1; j <= SEATS_PER_ROW; j++) {
                 const seat = document.createElement('div');
                 const seatId = `${rowLetter}${j}`;
                 seat.classList.add('seat');
-                seat.dataset.seatId = seatId; // Store ID as data attribute
-                seat.textContent = j; // Show seat number
+                seat.dataset.seatId = seatId;
+                seat.textContent = j;
 
                 if (bookedSeats.includes(seatId)) {
                     seat.classList.add('sold');
                     seat.textContent = 'N/A';
                 }
-                
                 seatMap.appendChild(seat);
             }
         }
-        updateSelectedCount(); // Reset count on map refresh
+        updateSelectedCount();
     }
 
-    // --- 4. Fetch Booked Seats (Now takes showId) ---
+    // --- 4. Fetch Booked Seats ---
     async function fetchBookedSeats(showId) {
         if (!showId) return;
         try {
-            // Pass showId as a query parameter
             const res = await fetch(`/api/get-booked-seats?showId=${showId}`);
             if (!res.ok) throw new Error('Could not fetch seats');
             bookedSeats = await res.json();
-            createSeatMap(); // Create map *after* fetching
+            createSeatMap();
         } catch (error) {
             messageEl.textContent = 'Error loading seat map for this show.';
             console.error(error);
@@ -108,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if(seat.classList.contains('selected')) {
                 seat.textContent = 'S';
             } else {
-                seat.textContent = seat.dataset.seatId.substring(1); // Restore number
+                seat.textContent = seat.dataset.seatId.substring(1);
             }
             updateSelectedCount();
         }
@@ -118,7 +160,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateSelectedCount() {
         const selectedSeats = document.querySelectorAll('.seat-map .seat.selected');
         const selectedSeatsCount = selectedSeats.length;
-
         count.innerText = selectedSeatsCount;
         total.innerText = selectedSeatsCount * TICKET_PRICE;
     }
@@ -130,20 +171,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const name = document.getElementById('name').value;
         const email = document.getElementById('email').value;
         const phone = document.getElementById('phone').value;
-        
         const showId = showSelector.value;
-
         const selectedSeats = Array.from(document.querySelectorAll('.seat-map .seat.selected'))
                                   .map(seat => seat.dataset.seatId);
 
-        if (!showId) {
-            messageEl.textContent = 'Please select a show.';
-            return;
-        }
-        if (selectedSeats.length === 0) {
-            messageEl.textContent = 'Please select at least one seat.';
-            return;
-        }
+        if (!showId) { messageEl.textContent = 'Please select a show.'; return; }
+        if (selectedSeats.length === 0) { messageEl.textContent = 'Please select at least one seat.'; return; }
 
         messageEl.textContent = 'Processing...';
 
@@ -156,14 +189,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!res.ok) {
             const errorData = await res.json();
             messageEl.textContent = errorData.error || 'Error creating order.';
-            if (res.status === 409) {
-                fetchBookedSeats(showId);
-            }
+            if (res.status === 409) { fetchBookedSeats(showId); }
             return;
         }
 
         const data = await res.json();
         const { key, orderId, bookingId, amount } = data;
+
+        // --- TIMER: Start the 10-minute timer (600 seconds) ---
+        startTimer(600);
 
         const options = {
             key: key,
@@ -174,6 +208,8 @@ document.addEventListener('DOMContentLoaded', () => {
             order_id: orderId,
             
             handler: async function (response) {
+                // --- TIMER: Stop the timer on success ---
+                clearBookingTimer();
                 messageEl.textContent = 'Verifying payment...';
                 
                 const verifyRes = await fetch('/api/verify-payment', {
@@ -206,66 +242,50 @@ document.addEventListener('DOMContentLoaded', () => {
         const rzp = new Razorpay(options);
         
         rzp.on('payment.failed', function (response) {
+            // --- TIMER: Stop the timer on failure ---
+            clearBookingTimer();
             messageEl.textContent = `Payment failed: ${response.error.description}.`;
         });
 
+        // --- TIMER: Store the modal object so our timer can close it ---
+        currentRzpObject = rzp;
         rzp.open();
     });
 
     // --- 8. Handle Test Button Click ---
     skipButton.addEventListener('click', async (e) => {
-        e.preventDefault(); // Stop form submission
+        e.preventDefault(); 
 
         const name = document.getElementById('name').value;
         const email = document.getElementById('email').value;
         const phone = document.getElementById('phone').value;
-        
-        // This variable is now in scope
         const showId = showSelector.value; 
-        
         const selectedSeats = Array.from(document.querySelectorAll('.seat-map .seat.selected'))
                                   .map(seat => seat.dataset.seatId);
 
-        // Run all the same checks
-        if (!showId) {
-            messageEl.textContent = 'Please select a show.';
-            return;
-        }
-        if (selectedSeats.length === 0) {
-            messageEl.textContent = 'Please select at least one seat.';
-            return;
-        }
-        if (!name || !email || !phone) {
-            messageEl.textContent = 'Please fill in all details.';
-            return;
-        }
+        if (!showId) { messageEl.textContent = 'Please select a show.'; return; }
+        if (selectedSeats.length === 0) { messageEl.textContent = 'Please select at least one seat.'; return; }
+        if (!name || !email || !phone) { messageEl.textContent = 'Please fill in all details.'; return; }
 
         messageEl.textContent = 'Processing Test Booking...';
 
-        // Call our new backend endpoint
         try {
             const res = await fetch('/api/skip-payment', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name, email, phone, seats: selectedSeats, showId: showId }),
             });
-
             const data = await res.json();
+            if (!res.ok) { throw new Error(data.error || 'Test booking failed.'); }
 
-            if (!res.ok) {
-                throw new Error(data.error || 'Test booking failed.');
-            }
-
-            // Success!
             messageEl.textContent = data.message;
             bookingForm.reset();
-            fetchBookedSeats(showId); // Refresh map
+            fetchBookedSeats(showId);
             updateSelectedCount();
-
         } catch (error) {
             messageEl.textContent = error.message;
             if (error.message.includes('already booked')) {
-                fetchBookedSeats(showId); // Refresh map if seats were taken
+                fetchBookedSeats(showId);
             }
         }
     });

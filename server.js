@@ -426,7 +426,8 @@ app.get('/api/validate-ticket/:bookingId/:showId', async (req, res) => {
 
 
 // --- Start the server ---
-const PORT = process.env.PORT || 3000; // Use Render's port if available
-app.listen(PORT, () => {
+// --- Start the server ---
+const PORT = process.env.PORT || 10000; // Use Render's port or default to 10000
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });

@@ -278,7 +278,23 @@ h1 {
     transition: all 0.2s ease;
     margin-top: 10px; /* Space it from the button above */
 }
+/* --- Add these styles for the timer --- */
 
+.timer-container {
+    text-align: center;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #f39c12; /* A warning orange color */
+    margin-bottom: 1rem;
+    padding: 10px;
+    background-color: rgba(243, 156, 18, 0.1);
+    border-radius: 6px;
+    border: 1px solid #f39c12;
+}
+
+.hidden {
+    display: none;
+}
 .skip-button:hover {
     background-color: #e67e22;
 }
