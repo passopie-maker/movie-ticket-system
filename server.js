@@ -7,7 +7,8 @@ const crypto = require('crypto');
 require('dotenv').config();
 
 // --- Initialization ---
-// This new code reads the key from a variable if deployed, 
+
+// This new code reads the key from a variable if deployed (on Render)
 // or from the file if running locally.
 let serviceAccount;
 if (process.env.GOOGLE_CREDENTIALS) {
@@ -17,6 +18,7 @@ if (process.env.GOOGLE_CREDENTIALS) {
   // For local development
   serviceAccount = require('./serviceAccountKey.json');
 }
+
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
@@ -40,15 +42,13 @@ app.use(express.json());
 app.use(express.static('public'));
 
 const TICKET_PRICE = 30; // Price *per seat*
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin123"; // Set this in your .env file!
+// Get admin password from .env file, with a default fallback
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin123";
 
 // --- API Endpoints ---
 
 /**
- * NEW Endpoint: Admin create show
- */
-/**
- * NEW Endpoint: Admin create show
+ * Endpoint 1: Admin create show
  */
 app.post('/api/admin/create-show', async (req, res) => {
     // UPDATED to include 'screen'
@@ -77,7 +77,7 @@ app.post('/api/admin/create-show', async (req, res) => {
 });
 
 /**
- * NEW Endpoint: Get all active shows for users
+ * Endpoint 2: Get all active shows for users
  */
 app.get('/api/get-shows', async (req, res) => {
     try {
@@ -98,7 +98,7 @@ app.get('/api/get-shows', async (req, res) => {
 });
 
 /**
- * UPDATED Endpoint: Get booked seats for a specific show
+ * Endpoint 3: Get booked seats for a specific show
  */
 app.get('/api/get-booked-seats', async (req, res) => {
     const { showId } = req.query; // Get showId from query param
@@ -131,7 +131,7 @@ app.get('/api/get-booked-seats', async (req, res) => {
 });
 
 /**
- * UPDATED Endpoint: Create a Razorpay Order
+ * Endpoint 4: Create a Razorpay Order
  */
 app.post('/api/create-order', async (req, res) => {
   const { name, email, phone, seats, showId } = req.body; // 'showId' is now required
@@ -144,6 +144,7 @@ app.post('/api/create-order', async (req, res) => {
     // Get the bookings subcollection for this show
     const bookingsRef = db.collection('shows').doc(showId).collection('bookings');
     
+    // Check for 'paid' seats
     const paidQuery = await bookingsRef
                             .where('status', '==', 'paid')
                             .where('seats', 'array-contains-any', seats)
@@ -154,6 +155,7 @@ app.post('/api/create-order', async (req, res) => {
         return res.status(409).json({ error: `Sorry, seat ${takenSeat} is already booked. Please refresh.` });
     }
 
+    // Check for 'pending' seats
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
     const pendingQuery = await bookingsRef
                                .where('status', '==', 'pending')
@@ -196,7 +198,7 @@ app.post('/api/create-order', async (req, res) => {
 });
 
 /**
- * UPDATED Endpoint: Verify Payment
+ * Endpoint 5: Verify Payment
  */
 app.post('/api/verify-payment', async (req, res) => {
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature, bookingId, showId } = req.body;
@@ -232,34 +234,40 @@ app.post('/api/verify-payment', async (req, res) => {
     });
 
     // Generate QR Code. We MUST include both showId and bookingId
-    const qrData = JSON.stringify({ bookingId: bookingId, showId: showId });
-    const qrCodeImage = await qrcode.toDataURL(qrData);
-// ... inside the app.post('/api/verify-payment', ... try { ... block
-    
-    // --- Find this part ---
+   // Generate QR Code. We MUST include both showId and bookingId
+const qrData = JSON.stringify({ bookingId: bookingId, showId: showId });
+
+// NEW: URL-encode the JSON data
+const encodedQrData = encodeURIComponent(qrData);
+
+// NEW: Create a public URL for the QR code image
+const qrCodeImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodedQrData}`;
+
+console.log('Generated QR Code URL:', qrCodeImageUrl);
+
+    // Get show info for email
     const showDoc = await db.collection('shows').doc(showId).get();
     const showName = showDoc.exists ? showDoc.data().name : 'Your Show';
-    const showScreen = showDoc.exists ? showDoc.data().screen : 'N/A'; // NEW line
+    const showScreen = showDoc.exists ? showDoc.data().screen : 'N/A';
 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: bookingData.email,
       subject: 'Your Movie Ticket is Confirmed!',
-      // UPDATED HTML block
       html: `
         <h1>Booking Confirmed!</h1>
         <p>Hi ${bookingData.name},</p>
-        <p>Thank you for your booking. Please see your show details below.</p>
+        <p>Thank you for your booking for <b>${showName}</b>.</p>
         <p>Please show this QR code at the event entrance.</p>
-        <img src="${qrCodeImage}" alt="Your QR Code Ticket">
+       <img src="${qrCodeImageUrl}" alt="Your QR Code Ticket">
         <hr>
         <h3>Booking Details:</h3>
         <p><b>Show:</b> ${showName}</p>
-        <p><b>Screen:</b> ${showScreen}</p> <p><b>Seats:</b> ${bookingData.seats.join(', ')}</p>
+        <p><b>Screen:</b> ${showScreen}</p>
+        <p><b>Seats:</b> ${bookingData.seats.join(', ')}</p>
         <p><b>Booking ID:</b> ${bookingId}</p>
       `,
     });
-// ... rest of the endpoint
 
     res.json({ message: 'Booking successful! Check your email for the QR code.' });
   } catch (error) {
@@ -269,10 +277,109 @@ app.post('/api/verify-payment', async (req, res) => {
 });
 
 /**
- * UPDATED Endpoint: Validate Ticket (Admin)
+ * Endpoint 6: Skip Payment (Test Booking)
+ */
+app.post('/api/skip-payment', async (req, res) => {
+    const { name, email, phone, seats, showId } = req.body;
+
+    if (!name || !email || !phone || !seats || seats.length === 0 || !showId) {
+        return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    console.log('Attempting test booking...');
+
+    try {
+        // --- 1. Check Seat Availability (Same as create-order) ---
+        const bookingsRef = db.collection('shows').doc(showId).collection('bookings');
+        
+        const paidQuery = await bookingsRef
+                                .where('status', '==', 'paid')
+                                .where('seats', 'array-contains-any', seats)
+                                .get();
+        
+        if (!paidQuery.empty) {
+            const takenSeat = paidQuery.docs[0].data().seats.find(s => seats.includes(s));
+            return res.status(409).json({ error: `Sorry, seat ${takenSeat} is already booked. Please refresh.` });
+        }
+        
+        const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+        const pendingQuery = await bookingsRef
+                                   .where('status', '==', 'pending')
+                                   .where('seats', 'array-contains-any', seats)
+                                   .where('createdAt', '>', admin.firestore.Timestamp.fromDate(tenMinutesAgo))
+                                   .get();
+
+        if (!pendingQuery.empty) {
+            const takenSeat = pendingQuery.docs[0].data().seats.find(s => seats.includes(s));
+            return res.status(409).json({ error: `Sorry, seat ${takenSeat} is currently being booked.` });
+        }
+
+        // --- 2. Create Booking and Mark as Paid ---
+        const totalAmount = TICKET_PRICE * seats.length;
+        const bookingRef = bookingsRef.doc(); // Create new doc ID
+
+        // Generate QR Code data
+       // Generate QR Code data
+const qrData = JSON.stringify({ bookingId: bookingRef.id, showId: showId });
+
+// NEW: URL-encode the JSON data
+const encodedQrData = encodeURIComponent(qrData);
+
+// NEW: Create a public URL for the QR code image
+const qrCodeImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodedQrData}`;
+
+console.log('Generated QR Code URL:', qrCodeImageUrl);
+        // Get Show Info
+        const showDoc = await db.collection('shows').doc(showId).get();
+        const showName = showDoc.exists ? showDoc.data().name : 'Your Show';
+        const showScreen = showDoc.exists ? showDoc.data().screen : 'N/A';
+
+        // --- 3. Send Email (Same as verify-payment) ---
+        await transporter.sendMail({
+            from: process.env.EMAIL_USER,
+            to: email,
+            subject: 'Your Movie Ticket is Confirmed! (TEST)',
+            html: `
+                <h1>Booking Confirmed! (TEST BOOKING)</h1>
+                <p>Hi ${name},</p>
+                <p>Thank you for your test booking for <b>${showName}</b>.</p>
+                <p>Please show this QR code at the event entrance.</p>
+                <img src="${qrCodeImageUrl}" alt="Your QR Code Ticket">
+                <hr>
+                <h3>Booking Details:</h3>
+                <p><b>Show:</b> ${showName}</p>
+                <p><b>Screen:</b> ${showScreen}</p>
+                <p><b>Seats:</b> ${seats.join(', ')}</p>
+                <p><b>Booking ID:</b> ${bookingRef.id}</p>
+            `,
+        });
+
+        // --- 4. Save to Firestore (AFTER email is sent) ---
+        await bookingRef.set({
+            bookingId: bookingRef.id,
+            showId: showId,
+            name, email, phone, seats,
+            amount: totalAmount,
+            status: 'paid', // Mark as 'paid' immediately
+            paymentId: 'TEST_MODE_SKIP', // Add a note
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        console.log(`Test booking successful for ${email}`);
+        res.json({ message: 'Booking successful (Test Mode)! Check your email.' });
+
+    } catch (error) {
+        console.error("Error in skip-payment:", error);
+        res.status(500).json({ error: 'Test booking failed on server.' });
+    }
+});
+
+
+/**
+ * Endpoint 7: Validate Ticket (Admin)
  */
 app.get('/api/validate-ticket/:bookingId/:showId', async (req, res) => {
-    // We now get both IDs from the QR code (which we'll update in admin.html)
+    // We now get both IDs from the QR code
     const { bookingId, showId } = req.params;
   
     try {
@@ -298,6 +405,7 @@ app.get('/api/validate-ticket/:bookingId/:showId', async (req, res) => {
           });
       }
   
+      // Mark as checked in
       await bookingRef.update({
         checkedIn: true,
         checkedInAt: admin.firestore.FieldValue.serverTimestamp()
@@ -318,7 +426,7 @@ app.get('/api/validate-ticket/:bookingId/:showId', async (req, res) => {
 
 
 // --- Start the server ---
-const PORT = 3000;
+const PORT = process.env.PORT || 3000; // Use Render's port if available
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });

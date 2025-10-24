@@ -1,19 +1,23 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Get all elements ---
     const seatMap = document.getElementById('seat-map');
     const count = document.getElementById('count');
     const total = document.getElementById('total');
     const messageEl = document.getElementById('message');
     const bookingForm = document.getElementById('booking-form');
-    const showSelector = document.getElementById('show-selector'); // New
+    const showSelector = document.getElementById('show-selector');
+    const skipButton = document.getElementById('skip-btn'); // Test button
+    const bookButton = document.getElementById('book-btn'); // Main book button
 
+    // --- Constants ---
     const TICKET_PRICE = 30;
     const ROWS = 6;
     const SEATS_PER_ROW = 10;
 
+    // --- State variables ---
     let bookedSeats = [];
     let currentShowId = null;
 
-    // --- 1. Populate Show Selector ---
     // --- 1. Populate Show Selector ---
     async function populateShowSelector() {
         try {
@@ -24,16 +28,20 @@ document.addEventListener('DOMContentLoaded', () => {
             showSelector.innerHTML = ''; // Clear "Loading..."
             if (shows.length === 0) {
                 showSelector.innerHTML = '<option value="">No shows available</option>';
+                // Disable form if no shows
+                bookButton.disabled = true;
+                skipButton.disabled = true;
                 return;
             }
+
+            bookButton.disabled = false;
+            skipButton.disabled = false;
 
             shows.forEach(show => {
                 const option = document.createElement('option');
                 option.value = show.id;
-                
-                // UPDATED text to include the screen name
+                // Updated text to include the screen name
                 option.textContent = `${show.name} [${show.screen}] (${new Date(show.date).toLocaleString()})`;
-                
                 showSelector.appendChild(option);
             });
 
@@ -54,22 +62,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- 3. Create the Seat Map (no changes) ---
+    // --- 3. Create the Seat Map ---
     function createSeatMap() {
-        seatMap.innerHTML = ''; 
+        seatMap.innerHTML = ''; // Clear existing map
         for (let i = 0; i < ROWS; i++) {
-            const rowLetter = String.fromCharCode(65 + i); 
+            const rowLetter = String.fromCharCode(65 + i); // A, B, C...
             for (let j = 1; j <= SEATS_PER_ROW; j++) {
                 const seat = document.createElement('div');
                 const seatId = `${rowLetter}${j}`;
                 seat.classList.add('seat');
-                seat.dataset.seatId = seatId; 
-                seat.textContent = j; 
+                seat.dataset.seatId = seatId; // Store ID as data attribute
+                seat.textContent = j; // Show seat number
 
                 if (bookedSeats.includes(seatId)) {
                     seat.classList.add('sold');
                     seat.textContent = 'N/A';
                 }
+                
                 seatMap.appendChild(seat);
             }
         }
@@ -91,7 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- 5. Handle Seat Click Logic (no changes) ---
+    // --- 5. Handle Seat Click Logic ---
     seatMap.addEventListener('click', (e) => {
         const seat = e.target.closest('.seat');
         if (seat && !seat.classList.contains('sold')) {
@@ -99,21 +108,22 @@ document.addEventListener('DOMContentLoaded', () => {
             if(seat.classList.contains('selected')) {
                 seat.textContent = 'S';
             } else {
-                seat.textContent = seat.dataset.seatId.substring(1);
+                seat.textContent = seat.dataset.seatId.substring(1); // Restore number
             }
             updateSelectedCount();
         }
     });
 
-    // --- 6. Update Count and Total (no changes) ---
+    // --- 6. Update Count and Total ---
     function updateSelectedCount() {
         const selectedSeats = document.querySelectorAll('.seat-map .seat.selected');
         const selectedSeatsCount = selectedSeats.length;
+
         count.innerText = selectedSeatsCount;
         total.innerText = selectedSeatsCount * TICKET_PRICE;
     }
 
-    // --- 7. Handle Booking Form Submit (UPDATED) ---
+    // --- 7. Handle Booking Form Submit (Real Payment) ---
     bookingForm.addEventListener('submit', async (e) => {
         e.preventDefault();
 
@@ -121,7 +131,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const email = document.getElementById('email').value;
         const phone = document.getElementById('phone').value;
         
-        // Get selected show ID
         const showId = showSelector.value;
 
         const selectedSeats = Array.from(document.querySelectorAll('.seat-map .seat.selected'))
@@ -141,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = await fetch('/api/create-order', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, email, phone, seats: selectedSeats, showId: showId }), // Pass showId
+            body: JSON.stringify({ name, email, phone, seats: selectedSeats, showId: showId }),
         });
 
         if (!res.ok) {
@@ -175,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         razorpay_order_id: response.razorpay_order_id,
                         razorpay_signature: response.razorpay_signature,
                         bookingId: bookingId,
-                        showId: showId, // Pass showId for verification
+                        showId: showId,
                     }),
                 });
 
@@ -201,6 +210,64 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         rzp.open();
+    });
+
+    // --- 8. Handle Test Button Click ---
+    skipButton.addEventListener('click', async (e) => {
+        e.preventDefault(); // Stop form submission
+
+        const name = document.getElementById('name').value;
+        const email = document.getElementById('email').value;
+        const phone = document.getElementById('phone').value;
+        
+        // This variable is now in scope
+        const showId = showSelector.value; 
+        
+        const selectedSeats = Array.from(document.querySelectorAll('.seat-map .seat.selected'))
+                                  .map(seat => seat.dataset.seatId);
+
+        // Run all the same checks
+        if (!showId) {
+            messageEl.textContent = 'Please select a show.';
+            return;
+        }
+        if (selectedSeats.length === 0) {
+            messageEl.textContent = 'Please select at least one seat.';
+            return;
+        }
+        if (!name || !email || !phone) {
+            messageEl.textContent = 'Please fill in all details.';
+            return;
+        }
+
+        messageEl.textContent = 'Processing Test Booking...';
+
+        // Call our new backend endpoint
+        try {
+            const res = await fetch('/api/skip-payment', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, email, phone, seats: selectedSeats, showId: showId }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || 'Test booking failed.');
+            }
+
+            // Success!
+            messageEl.textContent = data.message;
+            bookingForm.reset();
+            fetchBookedSeats(showId); // Refresh map
+            updateSelectedCount();
+
+        } catch (error) {
+            messageEl.textContent = error.message;
+            if (error.message.includes('already booked')) {
+                fetchBookedSeats(showId); // Refresh map if seats were taken
+            }
+        }
     });
 
     // --- Initial Load ---
